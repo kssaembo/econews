@@ -8,6 +8,9 @@ export interface User {
   class: number;
   number: number;
   role: UserRole;
+  password?: string;      // DB에 저장된 비밀번호 (교사용)
+  target_grade?: number;  // 담당 학년 (0이면 전체)
+  target_class?: number;  // 담당 반 (0이면 전체)
 }
 
 export interface Account {

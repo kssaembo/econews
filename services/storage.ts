@@ -6,7 +6,6 @@ const STORAGE_KEYS = {
   CURRENT_USER: 'ecokid_current_user'
 };
 
-// 선생님 비밀번호를 메모리에 임시 보관 (새로고침 전까지 유지)
 let sessionPassword = '';
 
 export const db = {
@@ -20,7 +19,7 @@ export const db = {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
     } else {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
-      sessionPassword = ''; // 로그아웃 시 비밀번호 초기화
+      sessionPassword = '';
     }
   },
 
@@ -44,28 +43,33 @@ export const db = {
     return data;
   },
 
-  verifyTeacherPassword: async (password: string): Promise<boolean> => {
+  verifyTeacherPassword: async (password: string, loginType: 'main' | 'test' = 'main'): Promise<boolean> => {
     const { data, error } = await supabase.functions.invoke('auth-teacher', {
-      body: { password }
+      body: { password, loginType }
     });
+    
     if (error) {
       console.error("Auth Function Error:", error);
       return false;
     }
     
     if (data?.success) {
-      sessionPassword = password; // 성공 시 비밀번호 저장
+      sessionPassword = password;
     }
     return data?.success === true;
   },
 
-  getTeacherUser: async (): Promise<User | null> => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('role', 'teacher')
-      .limit(1)
-      .maybeSingle();
+  getTeacherUser: async (name?: string): Promise<User | null> => {
+    let query = supabase.from('users').select('*').eq('role', 'teacher');
+    
+    if (name) {
+      query = query.eq('name', name);
+    } else {
+      // 전체 관리자(grade: 0)를 먼저 찾음
+      query = query.eq('grade', 0).order('created_at', { ascending: true }).limit(1);
+    }
+    
+    const { data, error } = await query.maybeSingle();
     if (error) throw error;
     return data;
   },
@@ -114,7 +118,6 @@ export const db = {
     });
   },
 
-  // 로직 변경: 직접 Insert 하지 않고 publish-article Edge Function 호출
   addArticle: async (article: { title: string; content: string; url: string; keywords: string[]; is_approved?: boolean }): Promise<NewsArticle> => {
     if (!sessionPassword) {
       throw new Error("선생님 인증 정보가 없습니다. 다시 로그인해주세요.");
@@ -139,14 +142,6 @@ export const db = {
       is_approved: data.is_approved || false,
       keywords: Array.isArray(data.keywords) ? data.keywords : []
     };
-  },
-
-  approveArticle: async (articleId: string) => {
-    // 이미 addArticle 단계에서 에지 함수를 통해 true로 저장되므로, 
-    // 기존 승인 대기 기사를 업데이트해야 할 경우에도 보안을 위해 별도 에지 함수가 필요할 수 있습니다.
-    // 현재 기획상으로는 큐레이션 즉시 publish-article로 넘기므로 이 함수는 사용되지 않을 수 있습니다.
-    const { error } = await supabase.from('news_articles').update({ is_approved: true }).eq('id', articleId);
-    if (error) throw error;
   },
 
   resetArticles: async () => {

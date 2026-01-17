@@ -9,6 +9,7 @@ interface LoginViewProps {
 
 const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [role, setRole] = useState<UserRole>('student');
+  const [teacherMode, setTeacherMode] = useState<'main' | 'test'>('main');
   const [name, setName] = useState('');
   const [grade, setGrade] = useState(6);
   const [classNum, setClassNum] = useState(1);
@@ -23,11 +24,11 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     setIsSubmitting(true);
     try {
       if (role === 'teacher') {
-        // 수정된 로직: 서버에 비밀번호 검증 요청
-        const isPasswordCorrect = await db.verifyTeacherPassword(password);
+        const isPasswordCorrect = await db.verifyTeacherPassword(password, teacherMode);
         
         if (isPasswordCorrect) {
-          const teacherUser = await db.getTeacherUser();
+          // 'test' 모드인 경우 이름이 '테스트'인 계정을 가져오고, 'main'은 기본 관리자 계정
+          const teacherUser = await db.getTeacherUser(teacherMode === 'test' ? '테스트' : undefined);
           if (teacherUser) {
             await onLogin(teacherUser);
           } else {
@@ -37,7 +38,6 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           alert('비밀번호가 틀렸습니다!');
         }
       } else {
-        // 학생 로그인 로직: DB 정보 대조
         if (!name.trim()) {
           alert('이름을 입력해주세요!');
           setIsSubmitting(false);
@@ -147,17 +147,43 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
               </div>
             </>
           ) : (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-              <input
-                type="password"
-                required
-                disabled={isSubmitting}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="선생님 비밀번호를 입력하세요"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-green-400 outline-none transition-all disabled:bg-gray-50"
-              />
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+              <div className="flex gap-2 p-1 bg-green-50 rounded-xl border border-green-100">
+                <button
+                  type="button"
+                  onClick={() => setTeacherMode('main')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${teacherMode === 'main' ? 'bg-white shadow-sm text-green-700 border border-green-200' : 'text-green-400'}`}
+                >
+                  전체 관리자
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeacherMode('test')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${teacherMode === 'test' ? 'bg-white shadow-sm text-green-700 border border-green-200' : 'text-green-400'}`}
+                >
+                  학급 테스트
+                </button>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  {teacherMode === 'main' ? '전체 관리자 비밀번호' : '테스트 계정 비밀번호'}
+                </label>
+                <input
+                  type="password"
+                  required
+                  disabled={isSubmitting}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="비밀번호를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-green-400 outline-none transition-all disabled:bg-gray-50"
+                />
+              </div>
+              <p className="text-[10px] text-gray-400 text-center leading-tight">
+                {teacherMode === 'main' 
+                  ? '모든 학생의 활동 내역을 관리할 수 있습니다.' 
+                  : '설정된 특정 학급의 데이터만 확인할 수 있습니다.'}
+              </p>
             </div>
           )}
 
