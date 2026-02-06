@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { NewsArticle, SummaryResult, VerificationResult, NewsComment, User } from '../types';
-import { geminiService } from '../services/gemini';
-import { db } from '../services/storage';
+import { NewsArticle, SummaryResult, VerificationResult, NewsComment, User } from '../types.ts';
+import { geminiService } from '../services/gemini.ts';
+import { db } from '../services/storage.ts';
 
 const ECONOMIC_TIPS = [
   "돈은 물건을 사고팔 때 쓰는 '교환의 수단'이에요.",
@@ -93,7 +94,6 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
     fetchData();
   }, [article.id]);
 
-  // 프로그레스 바 시작 함수
   const startProgress = () => {
     setProgress(0);
     if (progressInterval.current) clearInterval(progressInterval.current);
@@ -103,12 +103,11 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
         if (prev < 40) return prev + 2;
         if (prev < 70) return prev + 1;
         if (prev < 95) return prev + 0.5;
-        return prev; // 95% 이상은 실제 완료 시 100%로 점프
+        return prev;
       });
     }, 100);
   };
 
-  // 프로그레스 바 완료 함수
   const completeProgress = () => {
     if (progressInterval.current) {
       clearInterval(progressInterval.current);
@@ -135,14 +134,15 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
 
     try {
       const res = await geminiService.summarizeNews(article.title, article.content);
+      // AI 사용 처리 및 포인트 차감
+      await db.useAi(user.userId);
       completeProgress();
-      // 시각적으로 100%를 잠시 보여주고 결과 표시
+      
       setTimeout(() => {
         setSummary(res);
         setLoadingSummary(false);
+        onUpdate();
       }, 500);
-      await db.useAi(user.userId);
-      onUpdate();
     } catch (error) {
       console.error(error);
       alert('AI 요약을 불러오는 중 오류가 발생했어요.');
@@ -165,28 +165,38 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
       const res = await geminiService.verifyComment(article.content, comment, article.keywords || []);
       completeProgress();
       
-      setTimeout(async () => {
-        setVerificationResult(res);
-        setVerifying(false);
+      // 검증 결과 처리
+      setVerificationResult(res);
+      setVerifying(false);
+      
+      if (res.passed) {
+        const newComment: NewsComment = {
+          id: crypto.randomUUID(),
+          userId: user.userId,
+          article_id: article.id,
+          content: comment,
+          is_passed: true,
+          created_at: new Date().toISOString()
+        };
         
-        if (res.passed) {
-          const newComment: NewsComment = {
-            id: crypto.randomUUID(),
-            userId: user.userId,
-            article_id: article.id,
-            content: comment,
-            is_passed: true,
-            created_at: new Date().toISOString()
-          };
+        try {
+          // 1. 댓글 등록 (RLS 권한이 필요함)
           await db.addComment(newComment);
+          // 2. 포인트 적립 (RPC 호출)
           await db.updateBalance(user.userId, 1);
+          
           setExistingComments(prev => [newComment, ...prev]);
           setComment('');
           setVerificationResult(null);
+          
+          // 상단 정보 갱신
           onUpdate();
           alert('축하합니다! 댓글이 통과되어 1포인트를 받았어요! 🌟');
+        } catch (dbError: any) {
+          console.error("DB 작업 중 에러:", dbError);
+          alert(`댓글은 검수 통과했지만 저장 중 오류가 발생했어요: ${dbError.message}`);
         }
-      }, 500);
+      }
     } catch (error) {
       console.error(error);
       alert('검수 중 오류가 발생했어요.');
@@ -201,7 +211,6 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
     return '어린이 친구';
   };
 
-  // 공통 로딩 UI 컴포넌트
   const LoadingDisplay = ({ title }: { title: string }) => (
     <div className="w-full max-w-md p-4 animate-in fade-in duration-500">
       <div className="flex flex-col items-center gap-4">
@@ -210,7 +219,6 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
           <span>{title}</span>
         </div>
         
-        {/* 채워지는 프로그레스 바 */}
         <div className="w-full bg-blue-100 h-6 rounded-full overflow-hidden mb-4 border border-blue-200 relative">
           <div 
             className="h-full bg-blue-500 transition-all duration-300 ease-out" 
@@ -221,7 +229,6 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
           </span>
         </div>
 
-        {/* 경제 상식 카드 */}
         <div className="bg-yellow-100/80 p-5 rounded-2xl border-2 border-yellow-200 shadow-sm w-full">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xl">💡</span>

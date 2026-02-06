@@ -16,20 +16,6 @@ serve(async (req) => {
   try {
     const { action, payload } = await req.json()
     
-    // 1. Supabase Secrets에서 키 가져오기
-    const apiKey = (globalThis as any).Deno.env.get("GEMINI_API_KEY") || (globalThis as any).Deno.env.get("API_KEY");
-    
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY가 설정되지 않았습니다. Supabase Dashboard -> Project Settings -> Secrets에서 설정해주세요.");
-    }
-
-    // 2. @google/genai 지침에 따라 process.env.API_KEY를 강제로 설정
-    // Deno 환경에서 라이브러리가 브라우저로 오해하더라도 키가 있으면 오류가 발생하지 않습니다.
-    (globalThis as any).process = {
-      env: { API_KEY: apiKey }
-    };
-
-    // 3. 지침대로 process.env.API_KEY를 사용하여 인스턴스 생성
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const model = 'gemini-3-flash-preview';
     
@@ -86,9 +72,21 @@ ${rawNewsList}
         required: ["summary", "easy_words"]
       };
     } else if (action === 'verify') {
-      prompt = `학생이 쓴 뉴스 댓글이 기사 내용과 관련이 있는지 검사해주세요.
-      기사 요약: ${payload.articleContent.substring(0, 100)}...
-      학생 댓글: ${payload.comment}`;
+      // 복사 붙여넣기 방지 및 주관적 생각 강요를 위한 매우 엄격한 프롬프트 (요청 반영)
+      prompt = `당신은 초등 경제 뉴스 댓글 검수관입니다. 다음 기준에 따라 학생의 댓글을 매우 엄격하게 평가하세요.
+
+[검사 대상 데이터]
+- 기사 키워드: ${payload.keywords.join(', ')}
+- 기사 내용: ${payload.articleContent.substring(0, 500)}...
+- 학생 댓글: ${payload.comment}
+
+[엄격한 평가 기준 - 하나라도 어기면 passed: false]
+1. 표절 및 복사 금지: 기사 본문의 문장을 그대로 복사하거나, 단순히 단어 순서만 바꾼 경우 무조건 탈락입니다.
+2. 주관적 생각 필수: "~라고 생각해요", "~가 신기해요", "~를 해보고 싶어요", "~를 알게 되어 기뻐요"와 같이 자신의 느낌, 다짐, 의견이 반드시 포함되어야 합니다. 단순히 기사 내용을 요약만 한 것은 탈락입니다.
+3. 관련성: 기사 내용 및 키워드와 전혀 상관없는 이야기를 하면 탈락입니다.
+4. 무의미한 나열 금지: "ㅋㅋㅋㅋㅋㅋㅋㅋ"나 "글자수채우기글자수채우기"와 같은 무의미한 반복은 탈락입니다.
+
+학생이 자신의 생각으로 정성껏 썼다면 passed를 true로, 기사 내용을 복사했거나 생각이 없다면 false로 하고 구체적인 탈락 이유를 reason에 적어주세요.`;
 
       responseSchema = {
         type: Type.OBJECT,

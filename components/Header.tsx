@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { User, Account, NewsAiUsage } from '../types';
+import { User, Account, NewsAiUsage } from '../types.ts';
 
 interface HeaderProps {
   user: User;
@@ -41,9 +42,12 @@ const Header: React.FC<HeaderProps> = ({ user, account, aiUsage, onLogout }) => 
           
           <div className="flex items-center gap-3">
             <div className="flex flex-col items-end md:items-start leading-tight text-right md:text-left">
-              <span className="text-[10px] md:text-sm text-gray-500 font-medium">
-                {user.grade}학년 {user.class}반
-              </span>
+              {/* 교사가 아닐 때만 학년 반 정보를 보여줌 (요청 1 반영) */}
+              {user.role !== 'teacher' && (
+                <span className="text-[10px] md:text-sm text-gray-500 font-medium">
+                  {user.grade}학년 {user.class}반
+                </span>
+              )}
               <span className="font-bold text-gray-700 text-sm md:text-base">
                 {user.name} {user.role === 'teacher' ? '교사' : '학생'}
               </span>

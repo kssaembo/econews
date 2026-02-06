@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
-import { db } from '../services/storage';
-import { NewsArticle, User } from '../types';
-import ArticleDetail from './ArticleDetail';
+import { db } from '../services/storage.ts';
+import { NewsArticle, User } from '../types.ts';
+import ArticleDetail from './ArticleDetail.tsx';
 
 interface StudentDashboardProps {
   user: User;

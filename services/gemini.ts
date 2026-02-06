@@ -1,6 +1,6 @@
 
-import { supabase } from './supabase';
-import { VerificationResult, SummaryResult } from '../types';
+import { supabase } from './supabase.ts';
+import { VerificationResult, SummaryResult } from '../types.ts';
 
 export const geminiService = {
   /**
