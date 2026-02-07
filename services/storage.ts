@@ -33,18 +33,13 @@ export const db = {
     return data || [];
   },
 
-  verifyUser: async (params: { name: string; grade: number; class: number; number: number; role: string }): Promise<User | null> => {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('name', params.name)
-      .eq('grade', params.grade)
-      .eq('class', params.class)
-      .eq('number', params.number)
-      .eq('role', params.role)
-      .maybeSingle();
-    if (error) throw error;
-    return data;
+  // 학생 로그인을 위해 Edge Function 호출 (name 대신 password 사용)
+  verifyUser: async (params: { password: string; grade: number; class: number; number: number; role: string; classCode: string }): Promise<User | null> => {
+    const { data, error } = await supabase.functions.invoke('auth-student', {
+      body: params
+    });
+    if (error || (data && data.success === false)) return null;
+    return data?.user || null;
   },
 
   verifyTeacherPassword: async (name: string, password: string): Promise<User | null> => {
@@ -127,7 +122,6 @@ export const db = {
   },
 
   updateBalance: async (userId: string, amount: number) => {
-    // RPC를 호출하여 서버측에서 balance를 업데이트합니다.
     const { error } = await supabase.rpc('update_user_balance', {
       p_user_id: userId,
       p_amount: amount

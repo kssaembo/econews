@@ -9,11 +9,12 @@ interface LoginViewProps {
 
 const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [role, setRole] = useState<UserRole>('student');
-  const [name, setName] = useState('');
+  const [name, setName] = useState(''); // 교사 아이디용으로 유지
+  const [classCode, setClassCode] = useState('');
   const [grade, setGrade] = useState(6);
   const [classNum, setClassNum] = useState(1);
   const [number, setNumber] = useState(1);
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(''); // 학생/교사 공통 비밀번호 상태
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -39,25 +40,30 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           setLoginError('아이디(이메일)나 비밀번호를 다시 확인해주세요.');
         }
       } else {
-        if (!name.trim()) {
-          setLoginError('이름을 입력해주세요!');
+        if (!classCode.trim()) {
+          setLoginError('학급 코드를 입력해주세요!');
+          setIsSubmitting(false);
+          return;
+        }
+        if (!password.trim()) {
+          setLoginError('비밀번호를 입력해주세요!');
           setIsSubmitting(false);
           return;
         }
 
         const verifiedUser = await db.verifyUser({
-          name,
+          password,
           grade,
           class: classNum,
           number,
-          role: 'student'
+          role: 'student',
+          classCode
         });
 
         if (verifiedUser) {
           await onLogin(verifiedUser);
         } else {
-          // 학생 로그인 실패 메시지 표시 (요청 1 반영)
-          setLoginError('학생 정보를 다시 확인해주세요.');
+          setLoginError('학급 코드 또는 학생 정보를 다시 확인해주세요.');
         }
       }
     } catch (err: any) {
@@ -82,7 +88,7 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={() => { setRole('student'); setName(''); setLoginError(null); }}
+              onClick={() => { setRole('student'); setName(''); setPassword(''); setClassCode(''); setLoginError(null); }}
               className={`flex-1 py-2 rounded-lg font-bold transition-all ${role === 'student' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-400'}`}
             >
               학생 로그인
@@ -90,77 +96,107 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             <button
               type="button"
               disabled={isSubmitting}
-              onClick={() => { setRole('teacher'); setName(''); setLoginError(null); }}
+              onClick={() => { setRole('teacher'); setName(''); setPassword(''); setLoginError(null); }}
               className={`flex-1 py-2 rounded-lg font-bold transition-all ${role === 'teacher' ? 'bg-white shadow-sm text-green-600' : 'text-gray-400'}`}
             >
               교사 로그인
             </button>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              {role === 'student' ? '이름' : '아이디'}
-            </label>
-            <input
-              type="text"
-              required
-              disabled={isSubmitting}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder={role === 'student' ? "등록된 이름을 적어주세요" : "선생님 아이디를 입력하세요"}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none transition-all disabled:bg-gray-50"
-            />
-          </div>
-
           {role === 'student' ? (
-            <div className="grid grid-cols-3 gap-2">
+            <>
+              {/* 1. 학급 코드 */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">학년</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">학급 코드</label>
                 <input
-                  type="number"
-                  min="1" max="6"
+                  type="text"
+                  required
                   disabled={isSubmitting}
-                  value={grade}
-                  onChange={(e) => setGrade(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
+                  value={classCode}
+                  onChange={(e) => setClassCode(e.target.value)}
+                  placeholder="선생님이 알려주신 코드를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-blue-400 outline-none transition-all disabled:bg-gray-50"
                 />
               </div>
+
+              {/* 2. 학년, 반, 번호 (위치 변경됨) */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">학년</label>
+                  <input
+                    type="number"
+                    min="1" max="6"
+                    disabled={isSubmitting}
+                    value={grade}
+                    onChange={(e) => setGrade(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">반</label>
+                  <input
+                    type="number"
+                    min="1" max="15"
+                    disabled={isSubmitting}
+                    value={classNum}
+                    onChange={(e) => setClassNum(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">번호</label>
+                  <input
+                    type="number"
+                    min="1" max="40"
+                    disabled={isSubmitting}
+                    value={number}
+                    onChange={(e) => setNumber(parseInt(e.target.value))}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* 3. 비밀번호 (이름 대신 사용) */}
               <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">반</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
                 <input
-                  type="number"
-                  min="1" max="15"
+                  type="password"
+                  required
                   disabled={isSubmitting}
-                  value={classNum}
-                  onChange={(e) => setClassNum(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="학생 비밀번호를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none transition-all disabled:bg-gray-50"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">번호</label>
-                <input
-                  type="number"
-                  min="1" max="40"
-                  disabled={isSubmitting}
-                  value={number}
-                  onChange={(e) => setNumber(parseInt(e.target.value))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none"
-                />
-              </div>
-            </div>
+            </>
           ) : (
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
-              <input
-                type="password"
-                required
-                disabled={isSubmitting}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="선생님 비밀번호를 입력하세요"
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-green-400 outline-none transition-all disabled:bg-gray-50"
-              />
-            </div>
+            <>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">아이디</label>
+                <input
+                  type="text"
+                  required
+                  disabled={isSubmitting}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="선생님 아이디를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-yellow-400 outline-none transition-all disabled:bg-gray-50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">비밀번호</label>
+                <input
+                  type="password"
+                  required
+                  disabled={isSubmitting}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="선생님 비밀번호를 입력하세요"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-100 focus:border-green-400 outline-none transition-all disabled:bg-gray-50"
+                />
+              </div>
+            </>
           )}
 
           <button
