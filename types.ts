@@ -14,6 +14,7 @@ export interface Account {
   accountId: string;
   userId: string;
   balance: number;
+  qrToken?: string;
 }
 
 export interface NewsArticle {

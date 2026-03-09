@@ -16,6 +16,32 @@ const App: React.FC = () => {
   useEffect(() => {
     const initApp = async () => {
       try {
+        // 1. URL 파라미터에서 토큰 확인 (클래스뱅크 자동로그인 대응)
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        
+        if (token) {
+          const tokenUser = await db.loginWithToken(token);
+          if (tokenUser) {
+            // 학생 초기화 및 상태 업데이트
+            if (tokenUser.role === 'student') {
+              await db.ensureStudentInitialized(tokenUser);
+            }
+            setCurrentUser(tokenUser);
+            db.setCurrentUser(tokenUser);
+            await refreshData(tokenUser);
+            
+            // URL 정리 (토큰 파라미터 제거)
+            const cleanUrl = new URL(window.location.href);
+            cleanUrl.searchParams.delete('token');
+            window.history.replaceState({}, '', cleanUrl.toString());
+            
+            setLoading(false);
+            return;
+          }
+        }
+
+        // 2. 기존 로컬스토리지 로그인 세션 확인
         const user = db.getCurrentUser();
         if (user) {
           setCurrentUser(user);
@@ -90,13 +116,12 @@ const App: React.FC = () => {
       
       <main className="max-w-6xl mx-auto flex-1 w-full">
         {currentUser.role === 'teacher' ? (
-          <TeacherDashboard />
+          <TeacherDashboard user={currentUser} />
         ) : (
           <StudentDashboard user={currentUser} onUpdate={() => refreshData(currentUser)} />
         )}
       </main>
 
-      {/* 푸터 영역: 저작권 문구 추가 (요청 3 반영) */}
       <footer className="w-full py-8 text-center text-gray-400 text-xs font-medium border-t border-gray-100 mt-12 bg-white/50">
         ⓒ 2026. Kwon's class. All rights reserved.
       </footer>

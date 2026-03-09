@@ -24,13 +24,41 @@ export const db = {
     }
   },
 
-  getUsers: async (): Promise<User[]> => {
-    const { data, error } = await supabase
+  getUsers: async (teacherId?: string): Promise<User[]> => {
+    let query = supabase
       .from('users')
       .select('*')
       .order('number', { ascending: true });
+    
+    if (teacherId) {
+      query = query.eq('teacher_id', teacherId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
+  },
+
+  // 토큰 기반 자동 로그인 (클래스뱅크 연동)
+  loginWithToken: async (token: string): Promise<User | null> => {
+    // 1. accounts 테이블에서 qrToken으로 userId 찾기
+    const { data: acc, error: accError } = await supabase
+      .from('accounts')
+      .select('userId')
+      .eq('qrToken', token)
+      .maybeSingle();
+      
+    if (accError || !acc) return null;
+    
+    // 2. 해당 userId로 사용자 정보 가져오기
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('userId', acc.userId)
+      .maybeSingle();
+      
+    if (userError || !user) return null;
+    return user;
   },
 
   // 학생 로그인을 위해 Edge Function 호출 (name 대신 password 사용)

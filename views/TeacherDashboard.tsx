@@ -5,7 +5,11 @@ import { geminiService } from '../services/gemini.ts';
 import { newsApiService } from '../services/newsApi.ts';
 import { NewsArticle, NewsComment, User } from '../types.ts';
 
-const TeacherDashboard: React.FC = () => {
+interface TeacherDashboardProps {
+  user: User;
+}
+
+const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ user }) => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [comments, setComments] = useState<NewsComment[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -46,7 +50,7 @@ const TeacherDashboard: React.FC = () => {
       const [arts, comms, usrs] = await Promise.all([
         db.getArticles(),
         db.getComments(),
-        db.getUsers()
+        db.getUsers(user.userId) // 로그인한 교사의 ID 전달
       ]);
       setArticles(arts);
       setComments(comms);
@@ -60,7 +64,7 @@ const TeacherDashboard: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user.userId]);
 
   const handleFetchAiNews = async () => {
     setIsRecommending(true);
