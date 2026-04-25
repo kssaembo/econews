@@ -24,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ user, account, aiUsage, onLogout }) => 
               <div className="flex items-center gap-1">
                 <span className="text-lg">⭐</span>
                 <span className="font-bold text-yellow-800">
-                  {account.balance}
+                  {account.balance.toFixed(1)}
                   <span className="hidden md:inline ml-0.5"> 권</span>
                 </span>
               </div>
