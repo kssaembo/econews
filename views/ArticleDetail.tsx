@@ -72,6 +72,7 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
   const [comment, setComment] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [existingComments, setExistingComments] = useState<NewsComment[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   
@@ -151,8 +152,9 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
   };
 
   const handleSubmitComment = async () => {
-    if (comment.length < 20) {
-      alert('조금 더 정성스럽게 작성해볼까요? (최소 20자 이상)');
+    setLocalError(null);
+    if (comment.trim().length < 20) {
+      setLocalError('글자 수가 너무 적어요. (최소 20자 이상 적어보세요!)');
       return;
     }
 
@@ -196,6 +198,9 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
           console.error("DB 작업 중 에러:", dbError);
           alert(`댓글은 검수 통과했지만 저장 중 오류가 발생했어요: ${dbError.message}`);
         }
+      } else {
+        // 검수 통과 실패 시 AI가 준 피드백을 알림창으로 띄움
+        alert(res.reason || '조금 더 정성스럽게 작성해볼까요?');
       }
     } catch (error) {
       console.error(error);
@@ -334,6 +339,11 @@ const ArticleDetail: React.FC<ArticleDetailProps> = ({ article, user, onBack, on
               placeholder="뉴스를 읽고 어떤 생각이 들었나요? 최소 20자 이상 적어보세요!"
               className="w-full h-32 p-4 rounded-2xl border-2 border-gray-100 focus:border-blue-400 outline-none mb-4 transition-colors"
             ></textarea>
+            {localError && (
+              <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm font-bold animate-in fade-in slide-in-from-top-1">
+                ⚠️ {localError}
+              </div>
+            )}
             {verificationResult && !verificationResult.passed && (
               <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 text-sm">
                 <b>보완이 필요해요:</b> {verificationResult.reason}
